@@ -58,14 +58,14 @@
         .btn-scan { background-color: #008CBA; }
         .btn-scan:hover { background-color: #007B9E; }
 
-        /* Tombol Cetak Bluetooth (Baru) */
+        /* Tombol Cetak Bluetooth */
         .btn-print-ble { 
             background-color: #e67e22; 
-            display: none; /* Sembunyikan secara default */
+            display: none; /* Disembunyikan sampai printer terhubung */
         }
         .btn-print-ble:hover { background-color: #d35400; }
 
-        /* Sembunyikan tombol dan atur ulang layout saat dicetak (Browser) */
+        /* Sembunyikan tombol dan atur ulang layout saat dicetak (Browser/RawBT) */
         @media print {
             body { background-color: #fff; padding: 0; }
             .receipt { box-shadow: none; width: 100%; max-width: 80mm; margin: 0; padding: 0; }
@@ -117,7 +117,7 @@
         }
         .item-row {
             display: grid;
-            grid-template-columns: 20px 1fr auto;
+            grid-template-columns: 20px 1fr auto; /* Diubah menjadi auto agar harga tidak terpotong */
             margin-bottom: 8px;
             align-items: start;
             gap: 5px;
@@ -293,6 +293,9 @@
         let bluetoothDevice;
         let printCharacteristic;
 
+        // Kertas 80mm biasanya memuat 48 karakter. Jika memakai 58mm, ubah menjadi 32.
+        const LINE_LENGTH = 48; 
+
         async function hubungkanBluetooth() {
             try {
                 console.log('Meminta akses Bluetooth...');
@@ -317,26 +320,57 @@
 
             } catch (error) {
                 console.error('Gagal menghubungkan:', error);
-                alert('❌ Gagal menghubungkan Bluetooth: \nPastikan Anda mengakses ini lewat HTTPS/Localhost dan browser mendukung Web Bluetooth. \nDetail: ' + error.message);
+                alert('❌ Gagal menghubungkan Bluetooth: \nPastikan browser mendukung Web Bluetooth dan diakses melalui HTTPS atau localhost. \nDetail: ' + error.message);
             }
         }
 
-        // Fungsi untuk mengambil teks dari HTML dan menyusunnya jadi struk teks murni
+        // Fungsi Bantuan: Teks rata kanan-kiri
+        function formatBaris(teksKiri, teksKanan, panjangMaks = LINE_LENGTH) {
+            let kiri = teksKiri.toString();
+            let kanan = teksKanan.toString();
+            let sisaSpasi = panjangMaks - kiri.length - kanan.length;
+            
+            if (sisaSpasi > 0) {
+                return kiri + " ".repeat(sisaSpasi) + kanan;
+            } else {
+                return kiri + " " + kanan; 
+            }
+        }
+
+        // Fungsi Bantuan: Teks rata tengah
+        function formatTengah(teks, panjangMaks = LINE_LENGTH) {
+            let sisaSpasi = panjangMaks - teks.length;
+            if (sisaSpasi > 0) {
+                let spasiKiri = Math.floor(sisaSpasi / 2);
+                return " ".repeat(spasiKiri) + teks;
+            }
+            return teks;
+        }
+
+        // Fungsi mengekstrak dan mengatur format teks HTML menjadi format struk mentah
         function ekstrakTeksStruk() {
             let struk = "";
-            struk += "              CITITEX\n";
-            struk += "================================\n";
+
+            // Header Teks
+            struk += formatTengah("CITITEX", LINE_LENGTH) + "\n";
+            struk += "=".repeat(LINE_LENGTH) + "\n";
 
             // Ekstrak Info Header
             let infoRows = document.querySelectorAll('.info-table tr');
             infoRows.forEach(row => {
-                let text = row.innerText.replace(/\t/g, ' ');
-                struk += text + "\n";
+                let cols = row.querySelectorAll('td');
+                if (cols.length === 3) { 
+                    let label = cols[0].innerText;
+                    let val = cols[2].innerText.replace(/\n/g, ' '); 
+                    struk += `${label.padEnd(10)}: ${val}\n`;
+                } else if (cols.length === 1) { 
+                    struk += `${cols[0].innerText}\n`;
+                }
             });
 
-            struk += "================================\n";
+            struk += "=".repeat(LINE_LENGTH) + "\n";
 
-            // Ekstrak Items
+            // Ekstrak Items (Pakaian)
             let items = document.querySelectorAll('.item-row');
             items.forEach(item => {
                 let qty = item.querySelector('.qty-large').innerText;
@@ -347,11 +381,10 @@
 
                 struk += `${qty} x ${name}\n`;
                 struk += `    ${sub}\n`;
-                struk += `    ${bold}\n`;
-                struk += `    Rp ${price}\n\n`;
+                struk += formatBaris(`    ${bold}`, price, LINE_LENGTH) + "\n\n";
             });
 
-            // Ekstrak Services
+            // Ekstrak Services (Jasa Print)
             let services = document.querySelectorAll('.service-row');
             services.forEach(srv => {
                 let name = srv.querySelector('.service-name').innerText;
@@ -359,23 +392,23 @@
                 let sub = srv.querySelector('.service-sub').innerText;
 
                 struk += `${name}\n`;
-                struk += `    ${sub} -> Rp ${price}\n\n`;
+                struk += formatBaris(`    ${sub}`, price, LINE_LENGTH) + "\n\n";
             });
 
-            struk += "================================\n";
+            struk += "=".repeat(LINE_LENGTH) + "\n";
 
             // Ekstrak Totals
             let totals = document.querySelectorAll('.total-row');
             totals.forEach(tot => {
                 let label = tot.querySelector('.total-label').innerText;
                 let val = tot.querySelector('.total-value').innerText;
-                // Merapikan spasi (padEnd 15 karakter)
-                struk += `${label.padEnd(15)} : ${val}\n`;
+                struk += formatBaris(label, val, LINE_LENGTH) + "\n";
             });
 
-            struk += "================================\n";
-            struk += "          TERIMA KASIH\n";
-            struk += "      ATAS KUNJUNGAN ANDA\n\n\n\n"; // Jarak agar kertas keluar dari mesin
+            struk += "=".repeat(LINE_LENGTH) + "\n";
+            struk += formatTengah("TERIMA KASIH", LINE_LENGTH) + "\n";
+            struk += formatTengah("ATAS KUNJUNGAN ANDA", LINE_LENGTH) + "\n";
+            struk += "\n\n\n\n"; // Jarak potong agar kertas keluar
 
             return struk;
         }
@@ -386,7 +419,6 @@
                 return;
             }
 
-            // Dapatkan string teks struk dari HTML
             let teksStruk = ekstrakTeksStruk();
             await cetakTeksLangsung(teksStruk);
         }
@@ -396,19 +428,15 @@
                 let encoder = new TextEncoder();
                 let data = encoder.encode(teks);
                 
-                // MENGGUNAKAN CHUNKING (Penting untuk Bluetooth Web BLE)
-                // Mengirim data sepotong demi sepotong (Max 100 bytes) agar tidak error limitasi BLE MTU.
+                // Chunking Data (Batas max Bluetooth BLE)
                 let CHUNK_SIZE = 100;
                 for (let i = 0; i < data.length; i += CHUNK_SIZE) {
                     let chunk = data.slice(i, i + CHUNK_SIZE);
                     await printCharacteristic.writeValue(chunk);
-                    
-                    // Jeda kecil (20ms) agar buffer printer tidak penuh
-                    await new Promise(resolve => setTimeout(resolve, 20));
+                    await new Promise(resolve => setTimeout(resolve, 20)); // Jeda 20ms
                 }
                 
                 console.log('Struk berhasil dicetak!');
-                alert('🖨️ Struk berhasil dicetak ke printer Bluetooth!');
                 
             } catch (error) {
                 console.error('Gagal mencetak:', error);
