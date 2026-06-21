@@ -35,37 +35,37 @@
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
-        /* Tombol Print standar */
-        .btn-print {
+        /* Styling Tombol Standar */
+        .btn-print, .btn-scan, .btn-print-ble {
             padding: 10px 20px;
             font-size: 14px;
-            background-color: #4CAF50;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-family: Arial, sans-serif;
             font-weight: bold;
+            transition: background-color 0.3s;
         }
+
+        .btn-print { background-color: #4CAF50; }
         .btn-print:hover { background-color: #45a049; }
 
-        /* Tombol Pindai Bluetooth */
-        .btn-scan {
-            padding: 10px 20px;
-            font-size: 14px;
-            background-color: #008CBA;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-        }
+        .btn-scan { background-color: #008CBA; }
         .btn-scan:hover { background-color: #007B9E; }
 
-        /* Sembunyikan tombol dan atur ulang layout saat dicetak */
+        /* Tombol Cetak Bluetooth (Baru) */
+        .btn-print-ble { 
+            background-color: #e67e22; 
+            display: none; /* Sembunyikan secara default */
+        }
+        .btn-print-ble:hover { background-color: #d35400; }
+
+        /* Sembunyikan tombol dan atur ulang layout saat dicetak (Browser) */
         @media print {
             body { background-color: #fff; padding: 0; }
             .receipt { box-shadow: none; width: 100%; max-width: 80mm; margin: 0; padding: 0; }
@@ -120,6 +120,7 @@
             grid-template-columns: 20px 1fr auto;
             margin-bottom: 8px;
             align-items: start;
+            gap: 5px;
         }
         .qty-large {
             font-size: 16px;
@@ -163,9 +164,10 @@
     <div class="action-buttons">
         <button class="btn-print" onclick="window.print()">🖨️ Cetak (Browser / RawBT)</button>
         <button class="btn-scan" onclick="hubungkanBluetooth()">🔍 Pindai Printer Web BLE</button>
+        <button id="btn-cetak-ble" class="btn-print-ble" onclick="prosesCetakBluetooth()">📄 Cetak Struk ke Bluetooth</button>
     </div>
 
-    <div class="receipt">
+    <div class="receipt" id="area-struk">
         <div class="logo">
             <img src="https://cititex.com/_next/image?url=%2Fassets%2Flogo%2Flogo_black.png&w=640&q=75" alt="CITITEX Logo">
         </div>
@@ -237,24 +239,24 @@
 
         <div class="service-row">
             <div class="service-flex">
-                <div>Depan->DTF Label(5cm x 5cm)</div>
-                <div>450,000</div>
+                <div class="service-name">Depan->DTF Label(5cm x 5cm)</div>
+                <div class="service-price">450,000</div>
             </div>
             <div class="service-sub">9,000 / pcs</div>
         </div>
 
         <div class="service-row">
             <div class="service-flex">
-                <div>Belakang->DTF Logo(25cm x 6cm)</div>
-                <div>650,000</div>
+                <div class="service-name">Belakang->DTF Logo(25cm x 6cm)</div>
+                <div class="service-price">650,000</div>
             </div>
             <div class="service-sub">13,000 / pcs</div>
         </div>
 
         <div class="service-row">
             <div class="service-flex">
-                <div>Belakang->DTF Logo(20cm x 5cm)</div>
-                <div>650,000</div>
+                <div class="service-name">Belakang->DTF Logo(20cm x 5cm)</div>
+                <div class="service-price">650,000</div>
             </div>
             <div class="service-sub">13,000 / pcs</div>
         </div>
@@ -263,28 +265,29 @@
 
         <div class="total-row">
             <div class="total-label">Quantity</div>
-            <div>43</div>
+            <div class="total-value">43</div>
         </div>
         <div class="total-row">
             <div class="total-label">TOTAL</div>
-            <div>10,350,000</div>
+            <div class="total-value">10,350,000</div>
         </div>
         <div class="total-row">
             <div class="total-label">SHIPPING</div>
-            <div>0</div>
+            <div class="total-value">0</div>
         </div>
         <div class="total-row">
             <div class="total-label">Grand Total</div>
-            <div>10,350,000</div>
+            <div class="total-value">10,350,000</div>
         </div>
 
         <div class="divider">=======================================</div>
 
         <div class="total-row">
             <div class="total-label">CASH</div>
-            <div>10,350,000</div>
+            <div class="total-value">10,350,000</div>
         </div>
-        <br><br> </div>
+        <br><br> 
+    </div>
 
     <script>
         let bluetoothDevice;
@@ -309,8 +312,8 @@
 
                 alert('✅ Berhasil terhubung ke printer: ' + bluetoothDevice.name);
                 
-                // Opsional: Tes print teks sederhana saat sukses terhubung
-                cetakTeksLangsung("Koneksi Bluetooth Berhasil!\n\n\n");
+                // Menampilkan tombol cetak Bluetooth setelah terhubung
+                document.getElementById('btn-cetak-ble').style.display = 'block';
 
             } catch (error) {
                 console.error('Gagal menghubungkan:', error);
@@ -318,16 +321,95 @@
             }
         }
 
-        async function cetakTeksLangsung(teks) {
+        // Fungsi untuk mengambil teks dari HTML dan menyusunnya jadi struk teks murni
+        function ekstrakTeksStruk() {
+            let struk = "";
+            struk += "              CITITEX\n";
+            struk += "================================\n";
+
+            // Ekstrak Info Header
+            let infoRows = document.querySelectorAll('.info-table tr');
+            infoRows.forEach(row => {
+                let text = row.innerText.replace(/\t/g, ' ');
+                struk += text + "\n";
+            });
+
+            struk += "================================\n";
+
+            // Ekstrak Items
+            let items = document.querySelectorAll('.item-row');
+            items.forEach(item => {
+                let qty = item.querySelector('.qty-large').innerText;
+                let name = item.querySelector('.item-name').innerText;
+                let sub = item.querySelector('.item-sub').innerText;
+                let bold = item.querySelector('.item-bold').innerText;
+                let price = item.querySelector('.item-price').innerText;
+
+                struk += `${qty} x ${name}\n`;
+                struk += `    ${sub}\n`;
+                struk += `    ${bold}\n`;
+                struk += `    Rp ${price}\n\n`;
+            });
+
+            // Ekstrak Services
+            let services = document.querySelectorAll('.service-row');
+            services.forEach(srv => {
+                let name = srv.querySelector('.service-name').innerText;
+                let price = srv.querySelector('.service-price').innerText;
+                let sub = srv.querySelector('.service-sub').innerText;
+
+                struk += `${name}\n`;
+                struk += `    ${sub} -> Rp ${price}\n\n`;
+            });
+
+            struk += "================================\n";
+
+            // Ekstrak Totals
+            let totals = document.querySelectorAll('.total-row');
+            totals.forEach(tot => {
+                let label = tot.querySelector('.total-label').innerText;
+                let val = tot.querySelector('.total-value').innerText;
+                // Merapikan spasi (padEnd 15 karakter)
+                struk += `${label.padEnd(15)} : ${val}\n`;
+            });
+
+            struk += "================================\n";
+            struk += "          TERIMA KASIH\n";
+            struk += "      ATAS KUNJUNGAN ANDA\n\n\n\n"; // Jarak agar kertas keluar dari mesin
+
+            return struk;
+        }
+
+        async function prosesCetakBluetooth() {
             if (!printCharacteristic) {
                 alert('Harap hubungkan printer terlebih dahulu!');
                 return;
             }
+
+            // Dapatkan string teks struk dari HTML
+            let teksStruk = ekstrakTeksStruk();
+            await cetakTeksLangsung(teksStruk);
+        }
+
+        async function cetakTeksLangsung(teks) {
             try {
                 let encoder = new TextEncoder();
                 let data = encoder.encode(teks);
-                await printCharacteristic.writeValue(data);
-                console.log('Teks berhasil dicetak!');
+                
+                // MENGGUNAKAN CHUNKING (Penting untuk Bluetooth Web BLE)
+                // Mengirim data sepotong demi sepotong (Max 100 bytes) agar tidak error limitasi BLE MTU.
+                let CHUNK_SIZE = 100;
+                for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+                    let chunk = data.slice(i, i + CHUNK_SIZE);
+                    await printCharacteristic.writeValue(chunk);
+                    
+                    // Jeda kecil (20ms) agar buffer printer tidak penuh
+                    await new Promise(resolve => setTimeout(resolve, 20));
+                }
+                
+                console.log('Struk berhasil dicetak!');
+                alert('🖨️ Struk berhasil dicetak ke printer Bluetooth!');
+                
             } catch (error) {
                 console.error('Gagal mencetak:', error);
                 alert('Gagal mencetak: ' + error.message);
