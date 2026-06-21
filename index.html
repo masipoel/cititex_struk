@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Cetak Struk CITITEX</title>
+    <style>
+        /* Reset & Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            color: #000;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Container Struk (Ukuran Kertas Thermal 80mm) */
+        .receipt {
+            width: 80mm;
+            background-color: #fff;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Container Tombol Aksi */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Tombol Print standar */
+        .btn-print {
+            padding: 10px 20px;
+            font-size: 14px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        }
+        .btn-print:hover { background-color: #45a049; }
+
+        /* Tombol Pindai Bluetooth */
+        .btn-scan {
+            padding: 10px 20px;
+            font-size: 14px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        }
+        .btn-scan:hover { background-color: #007B9E; }
+
+        /* Sembunyikan tombol dan atur ulang layout saat dicetak */
+        @media print {
+            body { background-color: #fff; padding: 0; }
+            .receipt { box-shadow: none; width: 100%; max-width: 80mm; margin: 0; padding: 0; }
+            .action-buttons { display: none; }
+        }
+
+        /* Styling Header & Logo */
+        .logo {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .logo img {
+            max-width: 80%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 4px 0;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        /* Styling Info Header */
+        .info-table {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .info-table td {
+            vertical-align: top;
+            padding-bottom: 2px;
+        }
+        .info-table td.label {
+            width: 75px;
+        }
+        .info-table td.colon {
+            width: 10px;
+            text-align: center;
+        }
+
+        /* Boxed Items (Pakaian) */
+        .boxed-items {
+            border: 1px solid #000;
+            padding: 4px;
+            margin-bottom: 5px;
+        }
+        .item-row {
+            display: grid;
+            grid-template-columns: 20px 1fr auto;
+            margin-bottom: 8px;
+            align-items: start;
+        }
+        .qty-large {
+            font-size: 16px;
+            font-weight: bold;
+            line-height: 1;
+            margin-top: 2px;
+        }
+        .item-details {
+            padding-right: 2px;
+            padding-left: 2px;
+        }
+        .item-name { margin-bottom: 2px; }
+        .item-sub { margin-bottom: 2px; }
+        .item-bold { font-weight: bold; }
+        .item-price { text-align: right; }
+
+        /* Jasa Print (Non-Boxed) */
+        .service-row {
+            margin-bottom: 6px;
+        }
+        .service-flex {
+            display: flex;
+            justify-content: space-between;
+        }
+        .service-sub {
+            padding-left: 0;
+            margin-top: 2px;
+        }
+
+        /* Totals */
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        .total-label { width: 120px; }
+    </style>
+</head>
+<body>
+
+    <div class="action-buttons">
+        <button class="btn-print" onclick="window.print()">🖨️ Cetak (Browser / RawBT)</button>
+        <button class="btn-scan" onclick="hubungkanBluetooth()">🔍 Pindai Printer Web BLE</button>
+    </div>
+
+    <div class="receipt">
+        <div class="logo">
+            <img src="https://cititex.com/_next/image?url=%2Fassets%2Flogo%2Flogo_black.png&w=640&q=75" alt="CITITEX Logo">
+        </div>
+        <div class="divider">=======================================</div>
+        
+        <table class="info-table">
+            <tr><td class="label">Proforma#</td><td class="colon">:</td><td>59267</td></tr>
+            <tr><td class="label">Date</td><td class="colon">:</td><td>20-06-2026 08:18:12</td></tr>
+            <tr><td class="label">Submit</td><td class="colon">:</td><td>marryanne5627</td></tr>
+            <tr><td class="label">Location</td><td class="colon">:</td><td>Manokwari - Trikora Wosi</td></tr>
+            <tr><td class="label">Ship To</td><td class="colon">:</td><td>Bpk Rudi DINKES KAB. MANOKWARI//Senin jam 7 malam//cash<br>(6281295184976)</td></tr>
+            <tr><td colspan="3">by fr, Jayapura Selatan, Jayapura, Papua, 99220</td></tr>
+            <tr><td class="label">Shipping</td><td class="colon">:</td><td>Ambil di Manokwari</td></tr>
+        </table>
+        
+        <div class="divider">=======================================</div>
+
+        <div class="boxed-items">
+            <div class="item-row">
+                <div class="qty-large">5</div>
+                <div class="item-details">
+                    <div class="item-name">New States Apparel Easy Care Polo 8165 Maroon Size M</div>
+                    <div class="item-sub">200000/pcs - Manokwari - Trikora Wosi</div>
+                    <div class="item-bold">0DS / 0PK / 5PCS</div>
+                </div>
+                <div class="item-price">1,000,000</div>
+            </div>
+            
+            <div class="item-row">
+                <div class="qty-large">10</div>
+                <div class="item-details">
+                    <div class="item-name">New States Apparel Easy Care Polo 8165 Maroon Size L</div>
+                    <div class="item-sub">200000/pcs - Manokwari - Trikora Wosi</div>
+                    <div class="item-bold">0DS / 0PK / 10PCS</div>
+                </div>
+                <div class="item-price">2,000,000</div>
+            </div>
+
+            <div class="item-row">
+                <div class="qty-large">20</div>
+                <div class="item-details">
+                    <div class="item-name">New States Apparel Easy Care Polo 8165 Maroon Size XL</div>
+                    <div class="item-sub">200000/pcs - Manokwari - Trikora Wosi</div>
+                    <div class="item-bold">0DS / 1PK / 20PCS</div>
+                </div>
+                <div class="item-price">4,000,000</div>
+            </div>
+
+            <div class="item-row">
+                <div class="qty-large">5</div>
+                <div class="item-details">
+                    <div class="item-name">New States Apparel Easy Care Polo 8165 Maroon Size 2XL</div>
+                    <div class="item-sub">200000/pcs - Manokwari - Trikora Wosi</div>
+                    <div class="item-bold">0DS / 0PK / 5PCS</div>
+                </div>
+                <div class="item-price">1,000,000</div>
+            </div>
+
+            <div class="item-row">
+                <div class="qty-large">3</div>
+                <div class="item-details">
+                    <div class="item-name">New States Apparel Easy Care Polo 8165 Maroon Size 3XL</div>
+                    <div class="item-sub">200000/pcs - Manokwari - Trikora Wosi</div>
+                    <div class="item-bold">0DS / 0PK / 3PCS</div>
+                </div>
+                <div class="item-price">600,000</div>
+            </div>
+        </div>
+
+        <div class="service-row">
+            <div class="service-flex">
+                <div>Depan->DTF Label(5cm x 5cm)</div>
+                <div>450,000</div>
+            </div>
+            <div class="service-sub">9,000 / pcs</div>
+        </div>
+
+        <div class="service-row">
+            <div class="service-flex">
+                <div>Belakang->DTF Logo(25cm x 6cm)</div>
+                <div>650,000</div>
+            </div>
+            <div class="service-sub">13,000 / pcs</div>
+        </div>
+
+        <div class="service-row">
+            <div class="service-flex">
+                <div>Belakang->DTF Logo(20cm x 5cm)</div>
+                <div>650,000</div>
+            </div>
+            <div class="service-sub">13,000 / pcs</div>
+        </div>
+
+        <div class="divider">=======================================</div>
+
+        <div class="total-row">
+            <div class="total-label">Quantity</div>
+            <div>43</div>
+        </div>
+        <div class="total-row">
+            <div class="total-label">TOTAL</div>
+            <div>10,350,000</div>
+        </div>
+        <div class="total-row">
+            <div class="total-label">SHIPPING</div>
+            <div>0</div>
+        </div>
+        <div class="total-row">
+            <div class="total-label">Grand Total</div>
+            <div>10,350,000</div>
+        </div>
+
+        <div class="divider">=======================================</div>
+
+        <div class="total-row">
+            <div class="total-label">CASH</div>
+            <div>10,350,000</div>
+        </div>
+        <br><br> </div>
+
+    <script>
+        let bluetoothDevice;
+        let printCharacteristic;
+
+        async function hubungkanBluetooth() {
+            try {
+                console.log('Meminta akses Bluetooth...');
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
+                });
+
+                console.log('Menghubungkan ke GATT Server...');
+                const server = await bluetoothDevice.gatt.connect();
+
+                console.log('Mencari layanan printer...');
+                const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb'); 
+                
+                console.log('Mendapatkan karakteristik penulisan...');
+                printCharacteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+
+                alert('✅ Berhasil terhubung ke printer: ' + bluetoothDevice.name);
+                
+                // Opsional: Tes print teks sederhana saat sukses terhubung
+                cetakTeksLangsung("Koneksi Bluetooth Berhasil!\n\n\n");
+
+            } catch (error) {
+                console.error('Gagal menghubungkan:', error);
+                alert('❌ Gagal menghubungkan Bluetooth: \nPastikan Anda mengakses ini lewat HTTPS/Localhost dan browser mendukung Web Bluetooth. \nDetail: ' + error.message);
+            }
+        }
+
+        async function cetakTeksLangsung(teks) {
+            if (!printCharacteristic) {
+                alert('Harap hubungkan printer terlebih dahulu!');
+                return;
+            }
+            try {
+                let encoder = new TextEncoder();
+                let data = encoder.encode(teks);
+                await printCharacteristic.writeValue(data);
+                console.log('Teks berhasil dicetak!');
+            } catch (error) {
+                console.error('Gagal mencetak:', error);
+                alert('Gagal mencetak: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
