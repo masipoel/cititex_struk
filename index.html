@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aplikasi Cetak Struk CITITEX</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* Reset & Base Styles */
         * {
@@ -61,11 +62,11 @@
         /* Tombol Cetak Bluetooth */
         .btn-print-ble { 
             background-color: #e67e22; 
-            display: none; /* Disembunyikan sampai printer terhubung */
+            display: none; 
         }
         .btn-print-ble:hover { background-color: #d35400; }
 
-        /* Sembunyikan tombol dan atur ulang layout saat dicetak (Browser/RawBT) */
+        /* Sembunyikan tombol saat dicetak via Browser (Ctrl+P) */
         @media print {
             body { background-color: #fff; padding: 0; }
             .receipt { box-shadow: none; width: 100%; max-width: 80mm; margin: 0; padding: 0; }
@@ -117,7 +118,7 @@
         }
         .item-row {
             display: grid;
-            grid-template-columns: 20px 1fr auto; /* Diubah menjadi auto agar harga tidak terpotong */
+            grid-template-columns: 20px 1fr auto; 
             margin-bottom: 8px;
             align-items: start;
             gap: 5px;
@@ -164,12 +165,12 @@
     <div class="action-buttons">
         <button class="btn-print" onclick="window.print()">🖨️ Cetak (Browser / RawBT)</button>
         <button class="btn-scan" onclick="hubungkanBluetooth()">🔍 Pindai Printer Web BLE</button>
-        <button id="btn-cetak-ble" class="btn-print-ble" onclick="prosesCetakBluetooth()">📄 Cetak Struk ke Bluetooth</button>
+        <button id="btn-cetak-ble" class="btn-print-ble" onclick="prosesCetakGambar()">📄 Cetak Identik (Bluetooth)</button>
     </div>
 
     <div class="receipt" id="area-struk">
         <div class="logo">
-            <img src="https://cititex.com/_next/image?url=%2Fassets%2Flogo%2Flogo_black.png&w=640&q=75" alt="CITITEX Logo">
+            <img src="https://cititex.com/_next/image?url=%2Fassets%2Flogo%2Flogo_black.png&w=640&q=75" crossorigin="anonymous" alt="CITITEX Logo">
         </div>
         <div class="divider">=======================================</div>
         
@@ -293,9 +294,6 @@
         let bluetoothDevice;
         let printCharacteristic;
 
-        // Kertas 80mm biasanya memuat 48 karakter. Jika memakai 58mm, ubah menjadi 32.
-        const LINE_LENGTH = 48; 
-
         async function hubungkanBluetooth() {
             try {
                 console.log('Meminta akses Bluetooth...');
@@ -304,144 +302,119 @@
                     optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
                 });
 
-                console.log('Menghubungkan ke GATT Server...');
                 const server = await bluetoothDevice.gatt.connect();
-
-                console.log('Mencari layanan printer...');
                 const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb'); 
-                
-                console.log('Mendapatkan karakteristik penulisan...');
                 printCharacteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
 
                 alert('✅ Berhasil terhubung ke printer: ' + bluetoothDevice.name);
-                
-                // Menampilkan tombol cetak Bluetooth setelah terhubung
                 document.getElementById('btn-cetak-ble').style.display = 'block';
 
             } catch (error) {
                 console.error('Gagal menghubungkan:', error);
-                alert('❌ Gagal menghubungkan Bluetooth: \nPastikan browser mendukung Web Bluetooth dan diakses melalui HTTPS atau localhost. \nDetail: ' + error.message);
+                alert('❌ Gagal menghubungkan. Pastikan browser mendukung Web Bluetooth. \nDetail: ' + error.message);
             }
         }
 
-        // Fungsi Bantuan: Teks rata kanan-kiri
-        function formatBaris(teksKiri, teksKanan, panjangMaks = LINE_LENGTH) {
-            let kiri = teksKiri.toString();
-            let kanan = teksKanan.toString();
-            let sisaSpasi = panjangMaks - kiri.length - kanan.length;
-            
-            if (sisaSpasi > 0) {
-                return kiri + " ".repeat(sisaSpasi) + kanan;
-            } else {
-                return kiri + " " + kanan; 
-            }
-        }
-
-        // Fungsi Bantuan: Teks rata tengah
-        function formatTengah(teks, panjangMaks = LINE_LENGTH) {
-            let sisaSpasi = panjangMaks - teks.length;
-            if (sisaSpasi > 0) {
-                let spasiKiri = Math.floor(sisaSpasi / 2);
-                return " ".repeat(spasiKiri) + teks;
-            }
-            return teks;
-        }
-
-        // Fungsi mengekstrak dan mengatur format teks HTML menjadi format struk mentah
-        function ekstrakTeksStruk() {
-            let struk = "";
-
-            // Header Teks
-            struk += formatTengah("CITITEX", LINE_LENGTH) + "\n";
-            struk += "=".repeat(LINE_LENGTH) + "\n";
-
-            // Ekstrak Info Header
-            let infoRows = document.querySelectorAll('.info-table tr');
-            infoRows.forEach(row => {
-                let cols = row.querySelectorAll('td');
-                if (cols.length === 3) { 
-                    let label = cols[0].innerText;
-                    let val = cols[2].innerText.replace(/\n/g, ' '); 
-                    struk += `${label.padEnd(10)}: ${val}\n`;
-                } else if (cols.length === 1) { 
-                    struk += `${cols[0].innerText}\n`;
-                }
-            });
-
-            struk += "=".repeat(LINE_LENGTH) + "\n";
-
-            // Ekstrak Items (Pakaian)
-            let items = document.querySelectorAll('.item-row');
-            items.forEach(item => {
-                let qty = item.querySelector('.qty-large').innerText;
-                let name = item.querySelector('.item-name').innerText;
-                let sub = item.querySelector('.item-sub').innerText;
-                let bold = item.querySelector('.item-bold').innerText;
-                let price = item.querySelector('.item-price').innerText;
-
-                struk += `${qty} x ${name}\n`;
-                struk += `    ${sub}\n`;
-                struk += formatBaris(`    ${bold}`, price, LINE_LENGTH) + "\n\n";
-            });
-
-            // Ekstrak Services (Jasa Print)
-            let services = document.querySelectorAll('.service-row');
-            services.forEach(srv => {
-                let name = srv.querySelector('.service-name').innerText;
-                let price = srv.querySelector('.service-price').innerText;
-                let sub = srv.querySelector('.service-sub').innerText;
-
-                struk += `${name}\n`;
-                struk += formatBaris(`    ${sub}`, price, LINE_LENGTH) + "\n\n";
-            });
-
-            struk += "=".repeat(LINE_LENGTH) + "\n";
-
-            // Ekstrak Totals
-            let totals = document.querySelectorAll('.total-row');
-            totals.forEach(tot => {
-                let label = tot.querySelector('.total-label').innerText;
-                let val = tot.querySelector('.total-value').innerText;
-                struk += formatBaris(label, val, LINE_LENGTH) + "\n";
-            });
-
-            struk += "=".repeat(LINE_LENGTH) + "\n";
-            struk += formatTengah("TERIMA KASIH", LINE_LENGTH) + "\n";
-            struk += formatTengah("ATAS KUNJUNGAN ANDA", LINE_LENGTH) + "\n";
-            struk += "\n\n\n\n"; // Jarak potong agar kertas keluar
-
-            return struk;
-        }
-
-        async function prosesCetakBluetooth() {
+        // Fungsi Utama untuk mencetak gambar
+        async function prosesCetakGambar() {
             if (!printCharacteristic) {
                 alert('Harap hubungkan printer terlebih dahulu!');
                 return;
             }
 
-            let teksStruk = ekstrakTeksStruk();
-            await cetakTeksLangsung(teksStruk);
-        }
+            let btnCetak = document.getElementById('btn-cetak-ble');
+            btnCetak.innerText = "⏳ Sedang Memproses Gambar...";
+            btnCetak.disabled = true;
 
-        async function cetakTeksLangsung(teks) {
             try {
-                let encoder = new TextEncoder();
-                let data = encoder.encode(teks);
-                
-                // Chunking Data (Batas max Bluetooth BLE)
+                // 1. Mengubah HTML Element menjadi Gambar Canvas menggunakan html2canvas
+                let element = document.getElementById('area-struk');
+                let canvas = await html2canvas(element, {
+                    scale: 1.5, // Menjaga kualitas gambar
+                    backgroundColor: "#ffffff",
+                    useCORS: true // Membolehkan logo dirender
+                });
+
+                // 2. Mengubah Canvas ke kode ESC/POS Printer (Hitam Putih)
+                let escposData = ubahCanvasKeEscPos(canvas);
+
+                // 3. Menambahkan perintah enter di akhir agar kertas keluar
+                let enterCommand = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A]);
+                let finalPayload = new Uint8Array(escposData.length + enterCommand.length);
+                finalPayload.set(escposData);
+                finalPayload.set(enterCommand, escposData.length);
+
+                // 4. Mengirim data ke printer secara terpotong (Chunking)
                 let CHUNK_SIZE = 100;
-                for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-                    let chunk = data.slice(i, i + CHUNK_SIZE);
+                for (let i = 0; i < finalPayload.length; i += CHUNK_SIZE) {
+                    let chunk = finalPayload.slice(i, i + CHUNK_SIZE);
                     await printCharacteristic.writeValue(chunk);
-                    await new Promise(resolve => setTimeout(resolve, 20)); // Jeda 20ms
+                    await new Promise(resolve => setTimeout(resolve, 15)); // Jeda 15ms agar printer tidak hang
                 }
-                
-                console.log('Struk berhasil dicetak!');
-                
+
+                alert('🖨️ Struk berhasil dicetak!');
             } catch (error) {
                 console.error('Gagal mencetak:', error);
                 alert('Gagal mencetak: ' + error.message);
+            } finally {
+                btnCetak.innerText = "📄 Cetak Identik (Bluetooth)";
+                btnCetak.disabled = false;
             }
+        }
+
+        // Fungsi Teknis: Mengubah piksel gambar canvas menjadi bahasa ESC/POS (GS v 0)
+        function ubahCanvasKeEscPos(canvas) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const imgData = ctx.getImageData(0, 0, width, height).data;
+
+            // Memastikan lebar gambar adalah kelipatan 8 (syarat printer thermal)
+            const printWidth = Math.ceil(width / 8) * 8;
+            const byteWidth = printWidth / 8;
+
+            let buffer = new Uint8Array(8 + (byteWidth * height));
+            
+            // Header Perintah ESC/POS untuk Print Raster Image
+            buffer[0] = 0x1D; // GS
+            buffer[1] = 0x76; // v
+            buffer[2] = 0x30; // 0
+            buffer[3] = 0x00; // Mode normal
+            
+            // Dimensi Gambar
+            buffer[4] = byteWidth & 0xFF;
+            buffer[5] = (byteWidth >> 8) & 0xFF;
+            buffer[6] = height & 0xFF;
+            buffer[7] = (height >> 8) & 0xFF;
+
+            let offset = 8;
+            
+            // Looping Piksel untuk mengubah gambar menjadi 1-bit hitam putih
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < byteWidth; x++) {
+                    let byte = 0;
+                    for (let b = 0; b < 8; b++) {
+                        let px = (x * 8) + b;
+                        if (px < width) {
+                            let idx = (y * width + px) * 4;
+                            let r = imgData[idx];
+                            let g = imgData[idx + 1];
+                            let b_color = imgData[idx + 2];
+                            let a = imgData[idx + 3];
+
+                            // Menghitung kecerahan (Grayscale threshold)
+                            let brightness = (r * 0.299 + g * 0.587 + b_color * 0.114);
+                            
+                            // Jika piksel gelap (hitam) dan tidak transparan, set bit menjadi 1
+                            if (a > 128 && brightness < 128) {
+                                byte |= (1 << (7 - b)); 
+                            }
+                        }
+                    }
+                    buffer[offset++] = byte;
+                }
+            }
+            return buffer;
         }
     </script>
 </body>
